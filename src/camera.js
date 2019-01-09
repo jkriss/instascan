@@ -11,14 +11,15 @@ class MediaError extends Error {
 }
 
 class Camera {
-  constructor(id, name) {
+  constructor(id, name, constraints) {
     this.id = id;
     this.name = name;
+    this.constraints = constraints;
     this._stream = null;
   }
 
   async start() {
-    let constraints = {
+    let constraints = this.constraints || {
       audio: false,
       video: {
         mandatory: {
@@ -30,7 +31,6 @@ class Camera {
         optional: []
       }
     };
-
     this._stream = await Camera._wrapErrors(async () => {
       return await navigator.mediaDevices.getUserMedia(constraints);
     });
@@ -58,6 +58,27 @@ class Camera {
       .filter(d => d.kind === 'videoinput')
       .map(d => new Camera(d.deviceId, cameraName(d.label)));
   }
+
+  static async getCamerasWithConstraints(videoContraints={}) {
+    await this._ensureAccess();
+    let constraints = {
+      audio: false,
+      video: Object.assign({
+        mandatory: {
+          minWidth: 600,
+          maxWidth: 800,
+          minAspectRatio: 1.6
+        },
+        optional: [
+        ]
+      }, videoContraints)
+    };
+    let devices = await navigator.mediaDevices.enumerateDevices();
+    return devices
+      .filter(d => d.kind === 'videoinput')
+      .map(d => new Camera(d.deviceId, cameraName(d.label), constraints));
+  }
+
 
   static async _ensureAccess() {
     return await this._wrapErrors(async () => {
